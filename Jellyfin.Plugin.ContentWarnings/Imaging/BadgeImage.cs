@@ -74,7 +74,7 @@ public static class BadgeImage
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(
             keepAlpha ? SKEncodedImageFormat.Png : SKEncodedImageFormat.Jpeg,
-            keepAlpha ? 100 : 90);
+            keepAlpha ? 100 : 94);
 
         var temporary = outputPath + ".tmp";
         using (var stream = File.Create(temporary))
@@ -97,21 +97,36 @@ public static class BadgeImage
             ? height - margin - radius
             : margin + radius;
 
-        using var shadow = new SKPaint { Color = new SKColor(0, 0, 0, 90), IsAntialias = true };
-        canvas.DrawCircle(centerX, centerY, radius * 1.06f, shadow);
+        using var shadow = new SKPaint { Color = new SKColor(0, 0, 0, 82), IsAntialias = true };
+        canvas.DrawCircle(centerX, centerY, radius * 1.065f, shadow);
 
         using var fill = new SKPaint { Color = BadgeColor, IsAntialias = true };
         canvas.DrawCircle(centerX, centerY, radius, fill);
 
-        using var mark = new SKPaint { Color = MarkColor, IsAntialias = true };
-        var barWidth = radius * 0.26f;
-        var barTop = centerY - radius * 0.62f;
-        var barBottom = barTop + radius * 0.95f;
-        canvas.DrawRoundRect(
-            new SKRect(centerX - (barWidth / 2), barTop, centerX + (barWidth / 2), barBottom),
-            barWidth / 2,
-            barWidth / 2,
-            mark);
-        canvas.DrawCircle(centerX, barBottom + (radius * 0.20f), barWidth * 0.72f, mark);
+        // A hairline rim keeps the badge readable on posters that are red or dark red.
+        using var rim = new SKPaint
+        {
+            Color = new SKColor(255, 255, 255, 87),
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = radius * 0.035f
+        };
+        canvas.DrawCircle(centerX, centerY, radius * 0.9825f, rim);
+
+        using var bar = new SKPath();
+        var barTop = centerY - (radius * 0.625f);
+        var barBottom = centerY + (radius * 0.15f);
+        bar.MoveTo(centerX - (radius * 0.15f), barTop);
+        bar.LineTo(centerX + (radius * 0.15f), barTop);
+        bar.LineTo(centerX + (radius * 0.1125f), barBottom);
+        bar.LineTo(centerX - (radius * 0.1125f), barBottom);
+        bar.Close();
+
+        using var roundedEnds = SKPathEffect.CreateCorner(radius * 0.10f);
+        using var mark = new SKPaint { Color = MarkColor, IsAntialias = true, PathEffect = roundedEnds };
+        canvas.DrawPath(bar, mark);
+
+        using var dot = new SKPaint { Color = MarkColor, IsAntialias = true };
+        canvas.DrawCircle(centerX, centerY + (radius * 0.45f), radius * 0.19f, dot);
     }
 }

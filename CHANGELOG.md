@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1.0 — 2026-11-01
+
+- Redesigned the badge icon: tapered exclamation mark with a real gap between the bar and
+  the dot, plus a thin light rim so it stays readable on red and dark posters.
+- Higher JPEG quality on badged images, so the mark no longer smears at card size.
+- Existing badges are redrawn on the next task run.
+
 ## 1.1.0.0 — 2026-11-01
 
 - **Badge corner**: choose top/bottom, left/right so the badge does not overlap badges from
