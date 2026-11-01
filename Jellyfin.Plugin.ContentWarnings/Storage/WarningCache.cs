@@ -65,6 +65,21 @@ public sealed class CachedTopicVote
 }
 
 /// <summary>
+/// Badged image currently applied to one item.
+/// </summary>
+public sealed class BadgeEntry
+{
+    /// <summary>Gets or sets the fingerprint of the rendered badge.</summary>
+    public string Hash { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the image path the item had before the badge was applied.</summary>
+    public string OriginalPath { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the badged image path.</summary>
+    public string BadgedPath { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Reduced media payload kept on disk.
 /// </summary>
 public sealed class CachedMedia
@@ -127,10 +142,12 @@ public sealed class WarningCache
     private readonly string _matchesPath;
     private readonly string _mediaDirectory;
     private readonly string _topicsPath;
+    private readonly string _badgesPath;
     private readonly ILogger<WarningCache> _logger;
     private readonly SemaphoreSlim _ioGate = new(1, 1);
     private readonly ConcurrentDictionary<Guid, MatchEntry> _matches = new();
     private readonly ConcurrentDictionary<int, CachedMedia> _media = new();
+    private readonly ConcurrentDictionary<Guid, BadgeEntry> _badges = new();
     private TopicsCache? _topics;
 
     /// <summary>
@@ -144,12 +161,21 @@ public sealed class WarningCache
         _matchesPath = Path.Combine(directory, "matches.json");
         _mediaDirectory = Path.Combine(directory, "media");
         _topicsPath = Path.Combine(directory, "topics.json");
+        _badgesPath = Path.Combine(directory, "badges.json");
+        BadgesDirectory = Path.Combine(directory, "badges");
         _logger = logger;
 
         Directory.CreateDirectory(_directory);
         Directory.CreateDirectory(_mediaDirectory);
+        Directory.CreateDirectory(BadgesDirectory);
         LoadMatches();
+        LoadBadges();
     }
+
+    /// <summary>
+    /// Gets the directory that holds the badged images.
+    /// </summary>
+    public string BadgesDirectory { get; }
 
     /// <summary>
     /// Gets every cached match.
@@ -179,6 +205,51 @@ public sealed class WarningCache
         try
         {
             await WriteJsonAtomicAsync(_matchesPath, _matches.ToDictionary(pair => pair.Key, pair => pair.Value), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Gets the badge applied to one item.
+    /// </summary>
+    /// <param name="itemId">Jellyfin item id.</param>
+    /// <returns>The entry, or null when the item is not badged.</returns>
+    public BadgeEntry? GetBadge(Guid itemId) => _badges.TryGetValue(itemId, out var entry) ? entry : null;
+
+    /// <summary>
+    /// Gets every badged item.
+    /// </summary>
+    /// <returns>The badge entries keyed by Jellyfin item id.</returns>
+    public IReadOnlyDictionary<Guid, BadgeEntry> GetBadges() => _badges;
+
+    /// <summary>
+    /// Stores a badge entry in memory. Call <see cref="SaveBadgesAsync"/> to persist it.
+    /// </summary>
+    /// <param name="itemId">Jellyfin item id.</param>
+    /// <param name="entry">Entry to store.</param>
+    public void SetBadge(Guid itemId, BadgeEntry entry) => _badges[itemId] = entry;
+
+    /// <summary>
+    /// Forgets a badge entry in memory. Call <see cref="SaveBadgesAsync"/> to persist it.
+    /// </summary>
+    /// <param name="itemId">Jellyfin item id.</param>
+    public void RemoveBadge(Guid itemId) => _badges.TryRemove(itemId, out _);
+
+    /// <summary>
+    /// Persists the badge state.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    public async Task SaveBadgesAsync(CancellationToken cancellationToken)
+    {
+        await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteJsonAtomicAsync(_badgesPath, _badges.ToDictionary(pair => pair.Key, pair => pair.Value), cancellationToken)
                 .ConfigureAwait(false);
         }
         finally
@@ -325,6 +396,32 @@ public sealed class WarningCache
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
             _logger.LogWarning(ex, "Could not read the content warning match cache at {Path}. Starting empty.", _matchesPath);
+        }
+    }
+
+    private void LoadBadges()
+    {
+        if (!File.Exists(_badgesPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var entries = JsonSerializer.Deserialize<Dictionary<Guid, BadgeEntry>>(File.ReadAllText(_badgesPath));
+            if (entries is null)
+            {
+                return;
+            }
+
+            foreach (var (itemId, entry) in entries)
+            {
+                _badges[itemId] = entry;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Could not read the poster badge state at {Path}. Starting empty.", _badgesPath);
         }
     }
 

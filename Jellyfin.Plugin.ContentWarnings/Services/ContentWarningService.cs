@@ -28,6 +28,7 @@ public sealed class ContentWarningService
     private readonly IDtddClient _client;
     private readonly WarningCache _cache;
     private readonly ILibraryManager _libraryManager;
+    private readonly PosterBadgeService _badges;
     private readonly ILogger<ContentWarningService> _logger;
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _writing = new();
 
@@ -37,16 +38,19 @@ public sealed class ContentWarningService
     /// <param name="client">DoesTheDogDie client.</param>
     /// <param name="cache">File cache.</param>
     /// <param name="libraryManager">Jellyfin library manager.</param>
+    /// <param name="badges">Poster badge service.</param>
     /// <param name="logger">Logger.</param>
     public ContentWarningService(
         IDtddClient client,
         WarningCache cache,
         ILibraryManager libraryManager,
+        PosterBadgeService badges,
         ILogger<ContentWarningService> logger)
     {
         _client = client;
         _cache = cache;
         _libraryManager = libraryManager;
+        _badges = badges;
         _logger = logger;
     }
 
@@ -93,6 +97,24 @@ public sealed class ContentWarningService
 
         return _libraryManager.GetCollectionFolders(item)
             .Any(folder => configuration.LibraryIds.Contains(folder.Id));
+    }
+
+    /// <summary>
+    /// Gets whether an item is outside the tag scope but still inherits another item's badge.
+    /// </summary>
+    /// <param name="item">Jellyfin item.</param>
+    /// <returns>True when the item is an episode of a series inside the configured libraries.</returns>
+    public bool IsBadgeable(BaseItem item)
+    {
+        if (item is not Episode episode)
+        {
+            return false;
+        }
+
+        var seriesId = episode.SeriesId == Guid.Empty ? episode.FindSeriesId() : episode.SeriesId;
+        return seriesId != Guid.Empty
+               && _libraryManager.GetItemById(seriesId) is { } series
+               && IsInScope(series);
     }
 
     /// <summary>
@@ -143,6 +165,7 @@ public sealed class ContentWarningService
     /// <returns>The number of items visited.</returns>
     public async Task<int> ReapplyAllAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
+        await _badges.CleanupAsync(cancellationToken).ConfigureAwait(false);
         var items = GetItemsInScope();
         var index = 0;
 
@@ -373,6 +396,12 @@ public sealed class ContentWarningService
 
     private async Task ProcessItemAsync(BaseItem item, bool force, CancellationToken cancellationToken)
     {
+        if (item is Episode)
+        {
+            await _badges.SyncAsync(item, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (!IsInScope(item))
         {
             return;
@@ -391,6 +420,12 @@ public sealed class ContentWarningService
 
     private async Task ReapplyItemAsync(BaseItem item, CancellationToken cancellationToken)
     {
+        if (item is Episode)
+        {
+            await _badges.SyncAsync(item, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (!IsInScope(item))
         {
             return;
@@ -399,11 +434,21 @@ public sealed class ContentWarningService
         var match = _cache.GetMatch(item.Id);
         if (match?.DtddId is not { } dtddId)
         {
+            await SyncBadgesAsync(item, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         var media = await _cache.GetMediaAsync(dtddId, cancellationToken).ConfigureAwait(false);
         await ApplyTagsAsync(item, media, Configuration, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SyncBadgesAsync(BaseItem item, CancellationToken cancellationToken)
+    {
+        await _badges.SyncAsync(item, cancellationToken).ConfigureAwait(false);
+        if (item is Series series)
+        {
+            await _badges.SyncSeriesEpisodesAsync(series, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task<MatchEntry> ResolveMatchAsync(
@@ -579,6 +624,7 @@ public sealed class ContentWarningService
         if (string.IsNullOrWhiteSpace(configuration.TagPrefix))
         {
             _logger.LogWarning("Content warning tag prefix is empty; refusing to touch tags on {ItemName}.", item.Name);
+            await SyncBadgesAsync(item, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -588,15 +634,15 @@ public sealed class ContentWarningService
             .ToArray();
 
         var merged = TagCalculator.Merge(item.Tags, desired, configuration.TagPrefix);
-        if (TagCalculator.AreEqual(item.Tags, merged))
+        if (!TagCalculator.AreEqual(item.Tags, merged))
         {
-            return;
+            _writing[item.Id] = DateTimeOffset.UtcNow.AddSeconds(30);
+            item.Tags = merged;
+            await item.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+            _logger.LogDebug("Applied {Count} content warning tags to {ItemName}.", desired.Length, item.Name);
         }
 
-        _writing[item.Id] = DateTimeOffset.UtcNow.AddSeconds(30);
-        item.Tags = merged;
-        await item.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
-        _logger.LogDebug("Applied {Count} content warning tags to {ItemName}.", desired.Length, item.Name);
+        await SyncBadgesAsync(item, cancellationToken).ConfigureAwait(false);
     }
 
     private static IReadOnlyList<ContentWarning> Evaluate(CachedMedia? media, PluginConfiguration configuration)

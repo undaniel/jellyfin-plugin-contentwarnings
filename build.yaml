@@ -1,20 +1,22 @@
 ---
 name: "Content Warnings"
 guid: "cf9b24f8-d19d-4c23-897f-7fccce8c79d7"
-version: "1.0.1.0"
+version: "1.0.0.0"
 targetAbi: "12.0.0.0"
 framework: "net10.0"
 overview: "Content warnings from DoesTheDogDie.com as native Jellyfin tags"
 description: >
   Matches movies and series with DoesTheDogDie.com and applies content warning tags
   such as CW: Dog Death or CW: Flashing Lights. Administrators and users can block those
-  tags through Jellyfin's parental controls. Each administrator uses their own
-  DoesTheDogDie API key. Powered by DoesTheDogDie.com.
+  tags through Jellyfin's parental controls. An optional warning badge is baked into
+  posters and episode stills, so it shows in every client. Each administrator uses their
+  own DoesTheDogDie API key. Powered by DoesTheDogDie.com.
 category: "General"
 owner: "Daniel Carrasco"
 imageUrl: "https://raw.githubusercontent.com/undaniel/jellyfin-plugin-contentwarnings/main/images/icon.png"
 artifacts:
 - "Jellyfin.Plugin.ContentWarnings.dll"
 changelog: >
-  Initial release: matching by IMDb/TMDb/title, curated topics, JSON cache, scheduled
-  tasks, manual overrides and configuration page.
+  First release: matching by IMDb/TMDb/title, curated topics, JSON cache, scheduled
+  tasks, manual overrides, configuration page, and a warning badge baked into posters and
+  episode stills.

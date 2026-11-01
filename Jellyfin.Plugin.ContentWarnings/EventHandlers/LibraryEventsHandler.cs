@@ -81,7 +81,7 @@ public sealed class LibraryEventsHandler : IHostedService, IDisposable
             return;
         }
 
-        if (eventArgs.Item is BaseItem item && _service.IsInScope(item))
+        if (eventArgs.Item is BaseItem item && (_service.IsInScope(item) || _service.IsBadgeable(item)))
         {
             _added[item.Id] = DateTimeOffset.UtcNow + AddedDebounce;
         }
@@ -90,7 +90,7 @@ public sealed class LibraryEventsHandler : IHostedService, IDisposable
     private void OnItemUpdated(object? sender, ItemChangeEventArgs eventArgs)
     {
         if (eventArgs.Item is not BaseItem item
-            || !_service.IsInScope(item)
+            || !(_service.IsInScope(item) || _service.IsBadgeable(item))
             || _service.IsWriting(item.Id))
         {
             return;

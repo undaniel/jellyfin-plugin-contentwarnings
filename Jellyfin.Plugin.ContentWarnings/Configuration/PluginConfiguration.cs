@@ -84,4 +84,10 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a value indicating whether newly added items are processed automatically.
     /// </summary>
     public bool ProcessOnItemAdded { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a warning badge is baked into posters and
+    /// episode stills. Works in every client because it replaces the item image.
+    /// </summary>
+    public bool ShowPosterBadge { get; set; } = true;
 }

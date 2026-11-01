@@ -35,6 +35,7 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
             serviceProvider.GetRequiredService<ILogger<DtddClient>>()));
 
         serviceCollection.AddSingleton<ContentWarningService>();
+        serviceCollection.AddSingleton<PosterBadgeService>();
         serviceCollection.AddHostedService<LibraryEventsHandler>();
     }
 }

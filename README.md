@@ -17,6 +17,8 @@ changes: tags appear on the item page, can be filtered, and can be used by each 
   ambiguity-rejecting matcher.
 - Applies only tags that start with the configured prefix (`CW: ` by default) and never
   touches other tags.
+- Optional warning badge baked into movie and series posters and episode stills, so every
+  client shows it without client changes. Episodes inherit the badge of their series.
 - Caches matches and fetched warnings as JSON with atomic writes; network calls respect a
   configurable rate limit, `Retry-After`, exponential backoff and a 20-error circuit
   breaker.
@@ -84,8 +86,21 @@ Restart Jellyfin after copying the DLL.
 4. Pick libraries, or leave everything unchecked for all movie and series libraries.
 5. Save, then run **Dashboard > Scheduled Tasks > Update content warnings** once.
 
+### Poster badge
+
+**Show a warning badge on posters** replaces the item image with a copy that has a red
+warning badge in the top right corner. Because it is a normal image, it appears in every
+client, including Android TV and Swiftfin. Episodes do not get their own warnings; they
+show the badge of their series.
+
+The badged images live in `{Jellyfin data directory}/contentwarnings/badges/`. The plugin
+remembers the original image path in `badges.json` and restores it when the item loses its
+warnings or the option is turned off (run **Reapply content warning tags** to apply that
+immediately). Removing the plugin leaves the badged images and their references in place;
+deleting that data directory while those references exist breaks the posters.
+
 Cache files live under `{Jellyfin data directory}/contentwarnings/`:
-`matches.json`, `media/<dtddId>.json` and `topics.json`.
+`matches.json`, `media/<dtddId>.json`, `topics.json` and `badges.json`.
 
 ## Hiding content per user
 
@@ -188,6 +203,18 @@ clientes sin modificarlos y permite ocultar contenido por perfil con
    importantes. Puedes traducir cada etiqueta, por ejemplo `Dog Death` → `Muerte de perro`.
 5. Elige bibliotecas (vacío = todas las de películas y series) y guarda.
 6. Ejecuta una vez **Tareas programadas > Update content warnings**.
+
+### Badge en el póster
+
+La opción **Show a warning badge on posters** sustituye la imagen del item por una copia con
+un badge rojo de advertencia en la esquina superior derecha. Al ser una imagen normal, se ve
+en todos los clientes, incluidos Android TV y Swiftfin. Los episodios no tienen advertencias
+propias: muestran el badge de su serie.
+
+Las imágenes con badge se guardan en `{directorio de datos}/contentwarnings/badges/`, y
+`badges.json` recuerda la ruta original para restaurarla cuando el item deja de tener
+advertencias o se desactiva la opción (ejecuta **Reapply content warning tags** para que se
+aplique al momento).
 
 ### Ocultar contenido a un usuario
 

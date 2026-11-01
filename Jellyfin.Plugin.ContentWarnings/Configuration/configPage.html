@@ -79,6 +79,17 @@
                         </label>
                     </div>
 
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="ShowPosterBadge" name="ShowPosterBadge" type="checkbox" is="emby-checkbox" />
+                            <span>Show a warning badge on posters</span>
+                        </label>
+                        <div class="fieldDescription">
+                            Bakes a red warning badge into movie and series posters and episode stills, so every client shows it.
+                            The original image path is restored when the badge is disabled or the warnings disappear.
+                        </div>
+                    </div>
+
                     <h3>Libraries</h3>
                     <p class="fieldDescription">No selection means every movie and series library.</p>
                     <div id="Libraries"></div>
@@ -164,6 +175,7 @@
                         byId('RequestsPerSecond').value = config.RequestsPerSecond;
                         byId('IncludeSpoilerTopics').checked = !!config.IncludeSpoilerTopics;
                         byId('ProcessOnItemAdded').checked = !!config.ProcessOnItemAdded;
+                        byId('ShowPosterBadge').checked = config.ShowPosterBadge !== false;
                     });
                 }
 
@@ -369,6 +381,7 @@
                     config.RequestsPerSecond = parseFloat(byId('RequestsPerSecond').value) || 1;
                     config.IncludeSpoilerTopics = byId('IncludeSpoilerTopics').checked;
                     config.ProcessOnItemAdded = byId('ProcessOnItemAdded').checked;
+                    config.ShowPosterBadge = byId('ShowPosterBadge').checked;
 
                     if (librariesLoaded) {
                         config.LibraryIds = Array.prototype.map.call(
