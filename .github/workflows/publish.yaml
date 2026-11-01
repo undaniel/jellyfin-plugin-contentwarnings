@@ -6,13 +6,42 @@ on:
       - released
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  call:
-    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/publish.yaml@master
-    with:
-      version: ${{ github.event.release.tag_name }}
-      is-unstable: ${{ github.event.release.prerelease }}
-    secrets:
-      deploy-host: ${{ secrets.DEPLOY_HOST }}
-      deploy-user: ${{ secrets.DEPLOY_USER }}
-      deploy-key: ${{ secrets.DEPLOY_KEY }}
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build and package plugin
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet jprm
+          mkdir -p artifacts
+          .venv/bin/jprm plugin build . -o artifacts -v "$VERSION" --dotnet-framework net10.0
+
+      - name: Generate repository manifest
+        run: |
+          set -euo pipefail
+          ZIP=$(ls artifacts/*.zip)
+          .venv/bin/jprm repo init repo
+          .venv/bin/jprm repo add \
+            -U "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/$(basename "$ZIP")" \
+            repo "$ZIP"
+
+      - name: Attach zip and manifest to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "$GITHUB_REF_NAME" artifacts/*.zip repo/manifest.json --clobber

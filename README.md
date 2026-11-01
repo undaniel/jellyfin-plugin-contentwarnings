@@ -40,7 +40,18 @@ A Jellyfin 10.11 (.NET 9) build is **not** included in this repository.
 
 ## Install
 
-### From a release
+### From a plugin repository
+
+Add this URL in **Dashboard > Plugins > Repositories**, then install **Content Warnings**
+from the catalog:
+
+```
+https://github.com/undaniel/jellyfin-plugin-contentwarnings/releases/latest/download/manifest.json
+```
+
+Updates are offered automatically with each new release.
+
+### Manually from a release
 
 1. Download the release zip.
 2. Extract it into a folder under your Jellyfin `plugins` directory, for example
