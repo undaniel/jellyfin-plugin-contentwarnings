@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -34,6 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           ZIP=$(ls artifacts/*.zip)
+          mkdir -p repo
           .venv/bin/jprm repo init repo
           .venv/bin/jprm repo add \
             -U "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/$(basename "$ZIP")" \
