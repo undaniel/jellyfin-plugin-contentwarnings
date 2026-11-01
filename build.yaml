@@ -11,7 +11,7 @@ description: >
   tags through Jellyfin's parental controls. Each administrator uses their own
   DoesTheDogDie API key. Powered by DoesTheDogDie.com.
 category: "General"
-owner: "daniel"
+owner: "Daniel Carrasco"
 imageUrl: "https://raw.githubusercontent.com/undaniel/jellyfin-plugin-contentwarnings/main/images/icon.png"
 artifacts:
 - "Jellyfin.Plugin.ContentWarnings.dll"
