@@ -1,5 +1,7 @@
 # Content Warnings for Jellyfin
 
+![Content Warnings](images/banner.png)
+
 A Jellyfin plugin that turns the community content warnings from
 [DoesTheDogDie.com](https://www.doesthedogdie.com) into native Jellyfin tags such as
 `CW: Dog Death`, `CW: Flashing Lights` or `CW: Sexual Assault`.
