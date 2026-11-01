@@ -50,6 +50,9 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             new PluginPageInfo
             {
                 Name = Name,
+                DisplayName = Name,
+                EnableInMainMenu = true,
+                MenuIcon = "pets",
                 EmbeddedResourcePath = string.Format(
                     CultureInfo.InvariantCulture,
                     "{0}.Configuration.configPage.html",

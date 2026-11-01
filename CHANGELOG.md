@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1.0 — 2026-11-01
+
+- The configuration page is now listed in the dashboard sidebar ("Plugins" section) with a
+  paw icon, so the DoesTheDogDie API key is easy to find.
+
 ## 1.0.0.0 — 2026-11-01
 
 Initial release.

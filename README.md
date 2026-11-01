@@ -57,7 +57,8 @@ Updates are offered automatically with each new release.
 2. Extract it into a folder under your Jellyfin `plugins` directory, for example
    `.../jellyfin/plugins/ContentWarnings/`.
 3. Restart Jellyfin.
-4. Open **Dashboard > Plugins > Content Warnings**.
+4. Open **Dashboard > Plugins > Content Warnings**, or the **Content Warnings** entry in the
+   dashboard sidebar.
 
 ### From source
 
@@ -180,7 +181,8 @@ clientes sin modificarlos y permite ocultar contenido por perfil con
 ### Puesta en marcha
 
 1. Consigue una API key personal en DoesTheDogDie.com.
-2. En **Dashboard > Plugins > Content Warnings**, pega la key y pulsa **Test connection**.
+2. En **Dashboard > Plugins > Content Warnings** (o en el menú lateral), pega la key y pulsa
+   **Test connection**.
 3. Ajusta los umbrales: mínimo de votos "sí" (3 por defecto) y ratio mínima (0,6).
 4. Elige los topics. Si no marcas ninguno se usa una lista curada de advertencias
    importantes. Puedes traducir cada etiqueta, por ejemplo `Dog Death` → `Muerte de perro`.
