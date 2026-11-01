@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3.0 — 2026-11-01
+
+- Stop baking the badge into backdrops. The item page stretches the backdrop to the whole
+  window, which turned the badge into a huge mark over the background.
+- Backdrops badged by older versions are restored on the next task run.
+
 ## 1.1.2.0 — 2026-11-01
 
 - The poster badge now shows the warning triangle with the paw cut out, matching the

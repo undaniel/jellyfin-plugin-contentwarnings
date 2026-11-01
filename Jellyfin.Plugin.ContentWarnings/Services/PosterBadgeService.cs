@@ -183,6 +183,31 @@ public sealed class PosterBadgeService
         var hash = BadgeDecision.Fingerprint(configuration.TagPrefix!, configuration.BadgeCorner ?? "TopRight", tags!);
         var changed = false;
 
+        // Backdrops fill the item page, so a badge there is blown up to the whole window.
+        // Older versions badged them; put the original backdrop back.
+        var backdrop = entry?.Images.FirstOrDefault(image => image.Type == ImageType.Backdrop);
+        if (backdrop is not null)
+        {
+            var current = item.GetImageInfo(ImageType.Backdrop, backdrop.Index);
+            if (current is not null
+                && string.Equals(current.Path, backdrop.BadgedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                item.SetImage(
+                    new ItemImageInfo
+                    {
+                        Path = backdrop.OriginalPath,
+                        Type = ImageType.Backdrop,
+                        DateModified = File.Exists(backdrop.OriginalPath)
+                            ? File.GetLastWriteTimeUtc(backdrop.OriginalPath)
+                            : DateTime.MinValue
+                    },
+                    backdrop.Index);
+                changed = true;
+            }
+
+            entry!.Images.Remove(backdrop);
+        }
+
         foreach (var (type, index) in BadgeTargets())
         {
             var current = item.GetImageInfo(type, index);
@@ -264,11 +289,11 @@ public sealed class PosterBadgeService
 
     private static IEnumerable<(ImageType Type, int Index)> BadgeTargets()
     {
-        // Primary covers posters and episode stills; Thumb and Backdrop are what the
-        // Continue Watching and Next Up cards prefer when the item has them.
+        // Primary covers posters and episode stills; Thumb is what the Continue Watching
+        // and Next Up cards prefer when the item has one. Backdrops are excluded because
+        // the item page blows them up to the full window, badge included.
         yield return (ImageType.Primary, 0);
         yield return (ImageType.Thumb, 0);
-        yield return (ImageType.Backdrop, 0);
     }
 
     private static HashSet<string> EntryFilesInUse(BaseItem item, BadgeEntry entry)
