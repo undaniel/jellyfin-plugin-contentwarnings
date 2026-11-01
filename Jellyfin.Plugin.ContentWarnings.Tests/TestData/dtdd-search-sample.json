@@ -1,0 +1,12 @@
+[
+  {
+    "id": 10752,
+    "name": "Old Yeller",
+    "genres": ["adventure"],
+    "releaseYear": 1957,
+    "itemTypeId": 15,
+    "itemTypeName": "Movie",
+    "tmdbId": 22660,
+    "imdbId": "tt0050798"
+  }
+]

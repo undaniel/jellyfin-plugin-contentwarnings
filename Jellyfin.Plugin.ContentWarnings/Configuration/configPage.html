@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Content Warnings</title>
+</head>
+<body>
+    <div id="ContentWarningsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="ContentWarningsConfigForm">
+                    <h2>Content Warnings</h2>
+                    <p class="fieldDescription">
+                        Community content warnings from
+                        <a href="https://www.doesthedogdie.com" target="_blank" rel="noopener">Powered by DoesTheDogDie.com</a>.
+                        Applied as item tags with the configured prefix.
+                    </p>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ApiKey">DoesTheDogDie API key</label>
+                        <input id="ApiKey" name="ApiKey" type="password" is="emby-input" autocomplete="off" />
+                        <div class="fieldDescription">
+                            Required. Each administrator uses their own key from their DoesTheDogDie profile.
+                            The plugin never ships a key.
+                        </div>
+                        <button is="emby-button" type="button" id="TestKeyButton" class="raised">
+                            <span>Test connection</span>
+                        </button>
+                        <span id="TestKeyResult" class="fieldDescription"></span>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="TagPrefix">Tag prefix</label>
+                        <input id="TagPrefix" name="TagPrefix" type="text" is="emby-input" />
+                        <div class="fieldDescription">
+                            Every tag written by this plugin starts with this prefix. Other tags are never modified.
+                        </div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="MinYesVotes">Minimum yes votes</label>
+                        <input id="MinYesVotes" name="MinYesVotes" type="number" min="0" step="1" is="emby-input" />
+                        <div class="fieldDescription">A topic needs at least this many community "yes" votes.</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="MinYesRatio">Minimum yes ratio</label>
+                        <input id="MinYesRatio" name="MinYesRatio" type="number" min="0" max="1" step="0.01" is="emby-input" />
+                        <div class="fieldDescription">yes / (yes + no) must reach this value. 0.6 means 60%.</div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="CacheTtlDays">Cache TTL (days)</label>
+                        <input id="CacheTtlDays" name="CacheTtlDays" type="number" min="1" step="1" is="emby-input" />
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="NotFoundRetryDays">Retry unmatched items after (days)</label>
+                        <input id="NotFoundRetryDays" name="NotFoundRetryDays" type="number" min="1" step="1" is="emby-input" />
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="RequestsPerSecond">Requests per second</label>
+                        <input id="RequestsPerSecond" name="RequestsPerSecond" type="number" min="0.01" step="0.01" is="emby-input" />
+                        <div class="fieldDescription">Keep this low. The plugin retries 429 and 5xx responses with backoff.</div>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="IncludeSpoilerTopics" name="IncludeSpoilerTopics" type="checkbox" is="emby-checkbox" />
+                            <span>Include spoiler topics</span>
+                        </label>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="ProcessOnItemAdded" name="ProcessOnItemAdded" type="checkbox" is="emby-checkbox" />
+                            <span>Process new items automatically</span>
+                        </label>
+                    </div>
+
+                    <h3>Libraries</h3>
+                    <p class="fieldDescription">No selection means every movie and series library.</p>
+                    <div id="Libraries"></div>
+
+                    <h3>Topics</h3>
+                    <p class="fieldDescription">
+                        Checked topics become tags. When nothing is selected, a curated set of high-value topics is used.
+                        Use the translation field to rename a tag (for example "Dog Death" to "Muerte de perro").
+                    </p>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="TopicFilter">Filter topics</label>
+                        <input id="TopicFilter" type="text" is="emby-input" />
+                    </div>
+                    <div id="Topics" style="max-height: 26em; overflow-y: auto; border: 1px solid rgba(255,255,255,.12); padding: .5em;">
+                        Loading topics...
+                    </div>
+
+                    <h3>Items without a match</h3>
+                    <p class="fieldDescription">
+                        Paste a DoesTheDogDie id or media URL. Saving fetches its warnings immediately.
+                        A manual match is never replaced automatically.
+                    </p>
+                    <div id="Unmatched">Loading...</div>
+
+                    <h3>Hiding content per user</h3>
+                    <p class="fieldDescription">
+                        In Jellyfin open <strong>Users</strong>, edit a user and go to
+                        <strong>Parental Control &gt; Block items with tags</strong>. Add tags such as
+                        <strong>CW: Dog Death</strong>. Series tags are inherited by their episodes.
+                    </p>
+
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            (function () {
+                'use strict';
+
+                var pluginId = 'cf9b24f8-d19d-4c23-897f-7fccce8c79d7';
+                var config = null;
+                var topics = [];
+                var topicsLoaded = false;
+                var librariesLoaded = false;
+
+                function byId(id) {
+                    return document.querySelector('#' + id);
+                }
+
+                function showMessage(text, isError) {
+                    var element = byId('TestKeyResult');
+                    element.textContent = text;
+                    element.style.color = isError ? '#e57373' : '#7cb342';
+                }
+
+                function escapeText(value) {
+                    return value === null || value === undefined ? '' : String(value);
+                }
+
+                function parseDtddId(value) {
+                    if (!value) {
+                        return null;
+                    }
+
+                    var match = String(value).match(/(\d+)\s*$/);
+                    return match ? parseInt(match[1], 10) : null;
+                }
+
+                function loadConfig() {
+                    return ApiClient.getPluginConfiguration(pluginId).then(function (loaded) {
+                        config = loaded;
+                        byId('ApiKey').value = config.ApiKey || '';
+                        byId('TagPrefix').value = config.TagPrefix || 'CW: ';
+                        byId('MinYesVotes').value = config.MinYesVotes;
+                        byId('MinYesRatio').value = config.MinYesRatio;
+                        byId('CacheTtlDays').value = config.CacheTtlDays;
+                        byId('NotFoundRetryDays').value = config.NotFoundRetryDays;
+                        byId('RequestsPerSecond').value = config.RequestsPerSecond;
+                        byId('IncludeSpoilerTopics').checked = !!config.IncludeSpoilerTopics;
+                        byId('ProcessOnItemAdded').checked = !!config.ProcessOnItemAdded;
+                    });
+                }
+
+                function loadLibraries() {
+                    return ApiClient.getJSON(ApiClient.getUrl('Library/VirtualFolders')).then(function (folders) {
+                        librariesLoaded = true;
+                        var container = byId('Libraries');
+                        container.textContent = '';
+                        var selected = config.LibraryIds || [];
+
+                        (folders || []).filter(function (folder) {
+                            return !folder.CollectionType || folder.CollectionType === 'movies' || folder.CollectionType === 'tvshows';
+                        }).forEach(function (folder) {
+                            var label = document.createElement('label');
+                            label.className = 'emby-checkbox-label';
+                            label.style.display = 'block';
+
+                            var input = document.createElement('input');
+                            input.type = 'checkbox';
+                            input.setAttribute('is', 'emby-checkbox');
+                            input.className = 'library-checkbox';
+                            input.value = folder.ItemId;
+                            input.checked = selected.indexOf(folder.ItemId) !== -1;
+
+                            var span = document.createElement('span');
+                            span.textContent = escapeText(folder.Name);
+
+                            label.appendChild(input);
+                            label.appendChild(span);
+                            container.appendChild(label);
+                        });
+                    }).catch(function () {
+                        librariesLoaded = false;
+                        byId('Libraries').textContent = 'Could not load libraries.';
+                    });
+                }
+
+                function loadTopics() {
+                    return ApiClient.getJSON(ApiClient.getUrl('ContentWarnings/Topics')).then(function (loaded) {
+                        topics = loaded || [];
+                        topicsLoaded = true;
+                        renderTopics();
+                    }).catch(function () {
+                        topicsLoaded = false;
+                        byId('Topics').textContent = 'Could not load topics. Check the API key, then save and reopen this page.';
+                    });
+                }
+
+                function isTopicSelected(topic) {
+                    if (config.EnabledTopicIds && config.EnabledTopicIds.length > 0) {
+                        return config.EnabledTopicIds.indexOf(topic.Id) !== -1;
+                    }
+
+                    return !!topic.IsDefault;
+                }
+
+                function renderTopics() {
+                    var container = byId('Topics');
+                    var filter = (byId('TopicFilter').value || '').toLowerCase();
+                    container.textContent = '';
+
+                    topics.filter(function (topic) {
+                        if (!filter) {
+                            return true;
+                        }
+
+                        var haystack = [topic.Name, topic.DoesName, topic.Keywords].join(' ').toLowerCase();
+                        return haystack.indexOf(filter) !== -1;
+                    }).forEach(function (topic) {
+                        var row = document.createElement('div');
+                        row.style.display = 'flex';
+                        row.style.alignItems = 'center';
+                        row.style.gap = '.75em';
+                        row.style.padding = '.15em 0';
+
+                        var label = document.createElement('label');
+                        label.className = 'emby-checkbox-label';
+                        label.style.flex = '1';
+
+                        var checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.setAttribute('is', 'emby-checkbox');
+                        checkbox.className = 'topic-checkbox';
+                        checkbox.value = topic.Id;
+                        checkbox.checked = isTopicSelected(topic);
+
+                        var name = document.createElement('span');
+                        name.textContent = escapeText(topic.Name);
+
+                        label.appendChild(checkbox);
+                        label.appendChild(name);
+
+                        var translation = document.createElement('input');
+                        translation.type = 'text';
+                        translation.setAttribute('is', 'emby-input');
+                        translation.className = 'topic-translation';
+                        translation.dataset.topicId = topic.Id;
+                        translation.placeholder = 'Tag label';
+                        translation.style.maxWidth = '14em';
+                        translation.value = '';
+                        (config.TopicLabelOverrides || []).forEach(function (entry) {
+                            if (entry.TopicId === topic.Id) {
+                                translation.value = entry.Label;
+                            }
+                        });
+
+                        row.appendChild(label);
+                        row.appendChild(translation);
+                        container.appendChild(row);
+                    });
+                }
+
+                function loadUnmatched() {
+                    return ApiClient.getJSON(ApiClient.getUrl('ContentWarnings/Unmatched')).then(function (items) {
+                        renderUnmatched(items || []);
+                    }).catch(function () {
+                        byId('Unmatched').textContent = 'Could not load unmatched items.';
+                    });
+                }
+
+                function renderUnmatched(items) {
+                    var container = byId('Unmatched');
+                    container.textContent = '';
+
+                    if (items.length === 0) {
+                        container.textContent = 'No unmatched items.';
+                        return;
+                    }
+
+                    items.forEach(function (item) {
+                        var row = document.createElement('div');
+                        row.style.display = 'flex';
+                        row.style.alignItems = 'center';
+                        row.style.gap = '.5em';
+                        row.style.padding = '.25em 0';
+
+                        var name = document.createElement('span');
+                        name.style.flex = '1';
+                        name.textContent = item.Name + (item.Year ? ' (' + item.Year + ')' : '') + ' - ' + item.Type;
+
+                        var input = document.createElement('input');
+                        input.type = 'text';
+                        input.setAttribute('is', 'emby-input');
+                        input.placeholder = 'DTDD id or URL';
+                        input.style.maxWidth = '14em';
+
+                        var save = document.createElement('button');
+                        save.type = 'button';
+                        save.setAttribute('is', 'emby-button');
+                        save.className = 'raised';
+                        save.textContent = 'Match';
+                        save.addEventListener('click', function () {
+                            var dtddId = parseDtddId(input.value);
+                            if (!dtddId) {
+                                Dashboard.alert('Enter a numeric DoesTheDogDie id or a /media/<id> URL.');
+                                return;
+                            }
+
+                            saveManualMatch(item.ItemId, dtddId);
+                        });
+
+                        var none = document.createElement('button');
+                        none.type = 'button';
+                        none.setAttribute('is', 'emby-button');
+                        none.className = 'raised';
+                        none.textContent = 'No match';
+                        none.addEventListener('click', function () {
+                            saveManualMatch(item.ItemId, null);
+                        });
+
+                        row.appendChild(name);
+                        row.appendChild(input);
+                        row.appendChild(save);
+                        row.appendChild(none);
+                        container.appendChild(row);
+                    });
+                }
+
+                function saveManualMatch(itemId, dtddId) {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.ajax({
+                        type: 'PUT',
+                        url: ApiClient.getUrl('ContentWarnings/Items/' + itemId + '/Match'),
+                        data: JSON.stringify({ DtddId: dtddId }),
+                        contentType: 'application/json',
+                        dataType: 'json'
+                    }).then(function () {
+                        Dashboard.hideLoadingMsg();
+                        loadUnmatched();
+                    }).catch(function () {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Could not save the manual match. Check the server log.');
+                    });
+                }
+
+                function collectConfig() {
+                    config.ApiKey = byId('ApiKey').value.trim();
+                    config.TagPrefix = byId('TagPrefix').value;
+                    config.MinYesVotes = parseInt(byId('MinYesVotes').value, 10) || 0;
+                    config.MinYesRatio = parseFloat(byId('MinYesRatio').value) || 0;
+                    config.CacheTtlDays = parseInt(byId('CacheTtlDays').value, 10) || 30;
+                    config.NotFoundRetryDays = parseInt(byId('NotFoundRetryDays').value, 10) || 14;
+                    config.RequestsPerSecond = parseFloat(byId('RequestsPerSecond').value) || 1;
+                    config.IncludeSpoilerTopics = byId('IncludeSpoilerTopics').checked;
+                    config.ProcessOnItemAdded = byId('ProcessOnItemAdded').checked;
+
+                    if (librariesLoaded) {
+                        config.LibraryIds = Array.prototype.map.call(
+                            document.querySelectorAll('.library-checkbox:checked'),
+                            function (input) { return input.value; });
+                    }
+
+                    if (topicsLoaded) {
+                        config.EnabledTopicIds = Array.prototype.map.call(
+                            document.querySelectorAll('.topic-checkbox:checked'),
+                            function (input) { return parseInt(input.value, 10); });
+
+                        config.TopicLabelOverrides = [];
+                        Array.prototype.forEach.call(document.querySelectorAll('.topic-translation'), function (input) {
+                            var value = input.value.trim();
+                            if (value) {
+                                config.TopicLabelOverrides.push({
+                                    TopicId: parseInt(input.dataset.topicId, 10),
+                                    Label: value
+                                });
+                            }
+                        });
+                    }
+
+                    return config;
+                }
+
+                function saveConfig(event) {
+                    event.preventDefault();
+                    Dashboard.showLoadingMsg();
+
+                    ApiClient.updatePluginConfiguration(pluginId, collectConfig()).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    }).catch(function () {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Could not save the configuration.');
+                    });
+                }
+
+                byId('TestKeyButton').addEventListener('click', function () {
+                    Dashboard.showLoadingMsg();
+                    showMessage('Saving and testing...', false);
+
+                    // The endpoint reads the saved configuration, so persist the form first.
+                    ApiClient.updatePluginConfiguration(pluginId, collectConfig()).then(function () {
+                        return ApiClient.ajax({
+                            type: 'POST',
+                            url: ApiClient.getUrl('ContentWarnings/TestKey'),
+                            data: '{}',
+                            contentType: 'application/json',
+                            dataType: 'json'
+                        });
+                    }).then(function (result) {
+                        Dashboard.hideLoadingMsg();
+                        showMessage(result.Message, !result.Ok);
+                    }).catch(function () {
+                        Dashboard.hideLoadingMsg();
+                        showMessage('Request failed. Check the server log.', true);
+                    });
+                });
+
+                byId('TopicFilter').addEventListener('input', renderTopics);
+
+                document.querySelector('#ContentWarningsConfigPage').addEventListener('pageshow', function () {
+                    Dashboard.showLoadingMsg();
+                    loadConfig().then(function () {
+                        return Promise.all([loadLibraries(), loadTopics(), loadUnmatched()]);
+                    }).then(function () {
+                        Dashboard.hideLoadingMsg();
+                    }).catch(function () {
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+                document.querySelector('#ContentWarningsConfigForm').addEventListener('submit', saveConfig);
+            })();
+        </script>
+    </div>
+</body>
+</html>

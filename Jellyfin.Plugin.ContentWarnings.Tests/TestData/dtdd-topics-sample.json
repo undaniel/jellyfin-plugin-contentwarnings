@@ -1,0 +1,34 @@
+[
+  {
+    "id": 153,
+    "name": "a dog dies",
+    "notName": "no dogs die",
+    "keywords": "Dog death, canine death",
+    "doesName": "Does the dog die",
+    "listName": "where the dog dies",
+    "minimalName": "dogs dying",
+    "topicCategoryId": 56
+  },
+  {
+    "id": 154,
+    "name": "a cat dies",
+    "notName": "no cats die",
+    "keywords": "Cat death, feline death",
+    "doesName": "Does the cat die",
+    "topicCategoryId": 56
+  },
+  {
+    "id": 167,
+    "name": "there are spiders",
+    "keywords": "Spiders, arachnids",
+    "doesName": "Are there spiders",
+    "topicCategoryId": 3
+  },
+  {
+    "id": 168,
+    "name": "there are snakes",
+    "keywords": "Snakes, serpents",
+    "doesName": "Are there snakes",
+    "topicCategoryId": 3
+  }
+]
