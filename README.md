@@ -89,12 +89,14 @@ Restart Jellyfin after copying the DLL.
 ### Poster badge
 
 **Show a warning badge on posters** replaces the item image with a copy that has a red
-warning badge in the top right corner. Because it is a normal image, it appears in every
-client, including Android TV and Swiftfin. Episodes do not get their own warnings; they
-show the badge of their series.
+warning badge. **Badge corner** picks which corner gets it, so it does not overlap badges
+from other plugins. Primary, thumb and backdrop images are badged, so the badge also shows
+in Continue Watching and Next Up. Because it is a normal image, it appears in every client,
+including Android TV and Swiftfin. Episodes do not get their own warnings; they show the
+badge of their series.
 
 The badged images live in `{Jellyfin data directory}/contentwarnings/badges/`. The plugin
-remembers the original image path in `badges.json` and restores it when the item loses its
+remembers the original image paths in `badges.json` and restores them when the item loses its
 warnings or the option is turned off (run **Reapply content warning tags** to apply that
 immediately). Removing the plugin leaves the badged images and their references in place;
 deleting that data directory while those references exist breaks the posters.
@@ -207,12 +209,14 @@ clientes sin modificarlos y permite ocultar contenido por perfil con
 ### Badge en el póster
 
 La opción **Show a warning badge on posters** sustituye la imagen del item por una copia con
-un badge rojo de advertencia en la esquina superior derecha. Al ser una imagen normal, se ve
-en todos los clientes, incluidos Android TV y Swiftfin. Los episodios no tienen advertencias
-propias: muestran el badge de su serie.
+un badge rojo de advertencia. **Badge corner** elige la esquina, para no pisar badges de otros
+plugins. Se marcan las imágenes primary, thumb y backdrop, así que el badge también sale en
+Continue Watching y Next Up. Al ser una imagen normal, se ve en todos los clientes, incluidos
+Android TV y Swiftfin. Los episodios no tienen advertencias propias: muestran el badge de su
+serie.
 
 Las imágenes con badge se guardan en `{directorio de datos}/contentwarnings/badges/`, y
-`badges.json` recuerda la ruta original para restaurarla cuando el item deja de tener
+`badges.json` recuerda las rutas originales para restaurarlas cuando el item deja de tener
 advertencias o se desactiva la opción (ejecuta **Reapply content warning tags** para que se
 aplique al momento).
 

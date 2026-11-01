@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.ContentWarnings.Storage;
@@ -65,17 +66,44 @@ public sealed class CachedTopicVote
 }
 
 /// <summary>
-/// Badged image currently applied to one item.
+/// One image of an item that carries the badge.
+/// </summary>
+public sealed class BadgedImage
+{
+    /// <summary>Gets or sets the image type.</summary>
+    public ImageType Type { get; set; }
+
+    /// <summary>Gets or sets the image index.</summary>
+    public int Index { get; set; }
+
+    /// <summary>Gets or sets the image path the item had before the badge was applied.</summary>
+    public string OriginalPath { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the badged image path.</summary>
+    public string BadgedPath { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Badged images currently applied to one item.
 /// </summary>
 public sealed class BadgeEntry
 {
     /// <summary>Gets or sets the fingerprint of the rendered badge.</summary>
     public string Hash { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the image path the item had before the badge was applied.</summary>
+    /// <summary>Gets or sets the images that carry the badge.</summary>
+    public List<BadgedImage> Images { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the original path written by plugin 1.0.0.0, which only badged Primary.
+    /// Read on load to migrate it into <see cref="Images"/>; empty afterwards.
+    /// </summary>
     public string OriginalPath { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the badged image path.</summary>
+    /// <summary>
+    /// Gets or sets the badged path written by plugin 1.0.0.0, which only badged Primary.
+    /// Read on load to migrate it into <see cref="Images"/>; empty afterwards.
+    /// </summary>
     public string BadgedPath { get; set; } = string.Empty;
 }
 
@@ -416,6 +444,20 @@ public sealed class WarningCache
 
             foreach (var (itemId, entry) in entries)
             {
+                entry.Images ??= [];
+                if (entry.Images.Count == 0 && !string.IsNullOrWhiteSpace(entry.BadgedPath))
+                {
+                    entry.Images.Add(new BadgedImage
+                    {
+                        Type = ImageType.Primary,
+                        Index = 0,
+                        OriginalPath = entry.OriginalPath,
+                        BadgedPath = entry.BadgedPath
+                    });
+                    entry.OriginalPath = string.Empty;
+                    entry.BadgedPath = string.Empty;
+                }
+
                 _badges[itemId] = entry;
             }
         }

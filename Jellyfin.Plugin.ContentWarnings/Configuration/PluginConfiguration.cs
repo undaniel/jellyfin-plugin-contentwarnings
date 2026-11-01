@@ -90,4 +90,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// episode stills. Works in every client because it replaces the item image.
     /// </summary>
     public bool ShowPosterBadge { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the corner that receives the badge: TopRight, TopLeft, BottomRight or BottomLeft.
+    /// </summary>
+    public string BadgeCorner { get; set; } = "TopRight";
 }

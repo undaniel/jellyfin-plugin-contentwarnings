@@ -30,8 +30,8 @@ public class BadgeDecisionTests
     [Fact]
     public void Fingerprint_IgnoresTagOrder()
     {
-        var first = BadgeDecision.Fingerprint("CW: ", ["CW: A", "CW: B"]);
-        var second = BadgeDecision.Fingerprint("CW: ", ["CW: B", "CW: A"]);
+        var first = BadgeDecision.Fingerprint("CW: ", "TopRight", ["CW: A", "CW: B"]);
+        var second = BadgeDecision.Fingerprint("CW: ", "TopRight", ["CW: B", "CW: A"]);
 
         Assert.Equal(first, second);
     }
@@ -39,8 +39,17 @@ public class BadgeDecisionTests
     [Fact]
     public void Fingerprint_ChangesWhenTheWarningsChange()
     {
-        var first = BadgeDecision.Fingerprint("CW: ", ["CW: A"]);
-        var second = BadgeDecision.Fingerprint("CW: ", ["CW: A", "CW: B"]);
+        var first = BadgeDecision.Fingerprint("CW: ", "TopRight", ["CW: A"]);
+        var second = BadgeDecision.Fingerprint("CW: ", "TopRight", ["CW: A", "CW: B"]);
+
+        Assert.NotEqual(first, second);
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWhenTheCornerChanges()
+    {
+        var first = BadgeDecision.Fingerprint("CW: ", "TopRight", ["CW: A"]);
+        var second = BadgeDecision.Fingerprint("CW: ", "BottomLeft", ["CW: A"]);
 
         Assert.NotEqual(first, second);
     }

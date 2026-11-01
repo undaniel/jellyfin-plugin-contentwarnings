@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0.0 — 2026-11-01
+
+- **Badge corner**: choose top/bottom, left/right so the badge does not overlap badges from
+  other plugins.
+- Badges are now also baked into thumb and backdrop images, so Continue Watching and Next Up
+  show them even when the client inherits the series image.
+- Existing badge state is migrated automatically; the first run redraws the new image types.
+
 ## 1.0.0.0 — 2026-11-01
 
 First release.

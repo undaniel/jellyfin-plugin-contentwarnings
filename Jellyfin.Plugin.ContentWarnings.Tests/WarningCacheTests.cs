@@ -1,4 +1,5 @@
 using Jellyfin.Plugin.ContentWarnings.Storage;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jellyfin.Plugin.ContentWarnings.Tests;
@@ -65,6 +66,49 @@ public class WarningCacheTests : IDisposable
 
         Assert.NotNull(loaded);
         Assert.Equal(153, loaded!.Topics.Single().Id);
+    }
+
+    [Fact]
+    public async Task Badges_WithSeveralImageTypesSurviveAReload()
+    {
+        var itemId = Guid.NewGuid();
+        var cache = CreateCache();
+        cache.SetBadge(
+            itemId,
+            new BadgeEntry
+            {
+                Hash = "hash",
+                Images =
+                [
+                    new BadgedImage { Type = ImageType.Primary, OriginalPath = "poster.jpg", BadgedPath = "poster-badged.jpg" },
+                    new BadgedImage { Type = ImageType.Thumb, OriginalPath = "thumb.jpg", BadgedPath = "thumb-badged.jpg" }
+                ]
+            });
+        await cache.SaveBadgesAsync(CancellationToken.None);
+
+        var entry = CreateCache().GetBadge(itemId);
+
+        Assert.NotNull(entry);
+        Assert.Equal(2, entry!.Images.Count);
+        Assert.Contains(entry.Images, image => image.Type == ImageType.Thumb);
+    }
+
+    [Fact]
+    public void LegacySingleImageBadgesAreMigratedToPrimary()
+    {
+        Directory.CreateDirectory(_directory);
+        var itemId = Guid.NewGuid();
+        File.WriteAllText(
+            Path.Combine(_directory, "badges.json"),
+            "{\"" + itemId + "\":{\"Hash\":\"hash\",\"OriginalPath\":\"/media/poster.jpg\",\"BadgedPath\":\"/badges/poster.jpg\"}}");
+
+        var entry = CreateCache().GetBadge(itemId);
+
+        Assert.NotNull(entry);
+        var image = Assert.Single(entry!.Images);
+        Assert.Equal(ImageType.Primary, image.Type);
+        Assert.Equal("/media/poster.jpg", image.OriginalPath);
+        Assert.Equal("/badges/poster.jpg", image.BadgedPath);
     }
 
     [Fact]

@@ -85,8 +85,23 @@
                             <span>Show a warning badge on posters</span>
                         </label>
                         <div class="fieldDescription">
-                            Bakes a red warning badge into movie and series posters and episode stills, so every client shows it.
-                            The original image path is restored when the badge is disabled or the warnings disappear.
+                            Bakes a red warning badge into movie and series posters, episode stills, thumbs and backdrops,
+                            so every client shows it, including Continue Watching and Next Up.
+                            The original image paths are restored when the badge is disabled or the warnings disappear.
+                        </div>
+                    </div>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="BadgeCorner">Badge corner</label>
+                        <select id="BadgeCorner" name="BadgeCorner" is="emby-select" class="emby-select-withcolor emby-select">
+                            <option value="TopRight">Top right</option>
+                            <option value="TopLeft">Top left</option>
+                            <option value="BottomRight">Bottom right</option>
+                            <option value="BottomLeft">Bottom left</option>
+                        </select>
+                        <div class="fieldDescription">
+                            Pick a corner that does not overlap the badges other plugins draw.
+                            Run <strong>Reapply content warning tags</strong> to redraw existing images.
                         </div>
                     </div>
 
@@ -176,6 +191,7 @@
                         byId('IncludeSpoilerTopics').checked = !!config.IncludeSpoilerTopics;
                         byId('ProcessOnItemAdded').checked = !!config.ProcessOnItemAdded;
                         byId('ShowPosterBadge').checked = config.ShowPosterBadge !== false;
+                        byId('BadgeCorner').value = config.BadgeCorner || 'TopRight';
                     });
                 }
 
@@ -382,6 +398,7 @@
                     config.IncludeSpoilerTopics = byId('IncludeSpoilerTopics').checked;
                     config.ProcessOnItemAdded = byId('ProcessOnItemAdded').checked;
                     config.ShowPosterBadge = byId('ShowPosterBadge').checked;
+                    config.BadgeCorner = byId('BadgeCorner').value;
 
                     if (librariesLoaded) {
                         config.LibraryIds = Array.prototype.map.call(

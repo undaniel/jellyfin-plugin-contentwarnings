@@ -179,78 +179,139 @@ public sealed class PosterBadgeService
             return true;
         }
 
-        var current = item.GetImageInfo(ImageType.Primary, 0);
-        if (current is null)
-        {
-            return false;
-        }
+        var corner = BadgeImage.ParseCorner(configuration.BadgeCorner);
+        var hash = BadgeDecision.Fingerprint(configuration.TagPrefix!, configuration.BadgeCorner ?? "TopRight", tags!);
+        var changed = false;
 
-        var hash = BadgeDecision.Fingerprint(configuration.TagPrefix!, tags!);
-        var ours = entry is not null && string.Equals(current.Path, entry.BadgedPath, StringComparison.OrdinalIgnoreCase);
-        if (ours && entry!.Hash == hash && File.Exists(entry.BadgedPath))
+        foreach (var (type, index) in BadgeTargets())
         {
-            return false;
-        }
-
-        if (entry is null && current.Path.StartsWith(_cache.BadgesDirectory, StringComparison.OrdinalIgnoreCase))
-        {
-            // shortcut: with no state we cannot tell whether the file is already badged, so it stays; upgrade to a per-item sidecar to recover the original.
-            return false;
-        }
-
-        var originalPath = ours ? entry!.OriginalPath : current.Path;
-        var source = await ResolveLocalImageAsync(item, originalPath, cancellationToken).ConfigureAwait(false);
-        if (source is null)
-        {
-            _logger.LogDebug("No readable image for {ItemName}; skipping the badge.", item.Name);
-            return false;
-        }
-
-        string badgedPath;
-        try
-        {
-            badgedPath = BadgeImage.Render(source, _cache.BadgesDirectory, item.Id);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(ex, "Could not render the poster badge for {ItemName}.", item.Name);
-            return false;
-        }
-
-        item.SetImage(
-            new ItemImageInfo
+            var current = item.GetImageInfo(type, index);
+            if (current is null)
             {
-                Path = badgedPath,
-                Type = ImageType.Primary,
-                DateModified = File.GetLastWriteTimeUtc(badgedPath)
-            },
-            0);
-        await item.UpdateToRepositoryAsync(ItemUpdateType.ImageUpdate, cancellationToken).ConfigureAwait(false);
-        DeleteFiles(item.Id, badgedPath);
+                continue;
+            }
 
-        _cache.SetBadge(item.Id, new BadgeEntry
+            var recorded = entry?.Images.FirstOrDefault(image => image.Type == type && image.Index == index);
+            var ours = recorded is not null
+                       && string.Equals(current.Path, recorded.BadgedPath, StringComparison.OrdinalIgnoreCase);
+            if (ours && entry!.Hash == hash && File.Exists(recorded!.BadgedPath))
+            {
+                continue;
+            }
+
+            if (entry is null && current.Path.StartsWith(_cache.BadgesDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                // shortcut: with no state we cannot tell whether the file is already badged, so it stays; upgrade to a per-item sidecar to recover the original.
+                continue;
+            }
+
+            var originalPath = ours ? recorded!.OriginalPath : current.Path;
+            var source = await ResolveLocalImageAsync(item, originalPath, type, cancellationToken).ConfigureAwait(false);
+            if (source is null)
+            {
+                _logger.LogDebug("No readable {ImageType} image for {ItemName}; skipping the badge.", type, item.Name);
+                continue;
+            }
+
+            string badgedPath;
+            try
+            {
+                badgedPath = BadgeImage.Render(
+                    source,
+                    _cache.BadgesDirectory,
+                    item.Id,
+                    corner,
+                    $"-{type}{index}");
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not render the {ImageType} badge for {ItemName}.", type, item.Name);
+                continue;
+            }
+
+            item.SetImage(
+                new ItemImageInfo
+                {
+                    Path = badgedPath,
+                    Type = type,
+                    DateModified = File.GetLastWriteTimeUtc(badgedPath)
+                },
+                index);
+
+            entry ??= new BadgeEntry();
+            entry.Images.RemoveAll(image => image.Type == type && image.Index == index);
+            entry.Images.Add(new BadgedImage
+            {
+                Type = type,
+                Index = index,
+                OriginalPath = originalPath,
+                BadgedPath = badgedPath
+            });
+            changed = true;
+        }
+
+        if (!changed)
         {
-            Hash = hash,
-            OriginalPath = originalPath,
-            BadgedPath = badgedPath
-        });
+            return false;
+        }
+
+        entry!.Hash = hash;
+        await item.UpdateToRepositoryAsync(ItemUpdateType.ImageUpdate, cancellationToken).ConfigureAwait(false);
+        DeleteFiles(item.Id, EntryFilesInUse(item, entry));
+        _cache.SetBadge(item.Id, entry);
         return true;
+    }
+
+    private static IEnumerable<(ImageType Type, int Index)> BadgeTargets()
+    {
+        // Primary covers posters and episode stills; Thumb and Backdrop are what the
+        // Continue Watching and Next Up cards prefer when the item has them.
+        yield return (ImageType.Primary, 0);
+        yield return (ImageType.Thumb, 0);
+        yield return (ImageType.Backdrop, 0);
+    }
+
+    private static HashSet<string> EntryFilesInUse(BaseItem item, BadgeEntry entry)
+    {
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var image in entry.Images)
+        {
+            if (string.Equals(item.GetImageInfo(image.Type, image.Index)?.Path, image.BadgedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                files.Add(image.BadgedPath);
+            }
+        }
+
+        return files;
     }
 
     private async Task RestoreAsync(BaseItem item, BadgeEntry entry, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(entry.OriginalPath))
+        var restored = false;
+        foreach (var image in entry.Images)
         {
+            var current = item.GetImageInfo(image.Type, image.Index);
+            if (current is null || !string.Equals(current.Path, image.BadgedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                // The image was replaced while badged; keep the administrator's change.
+                continue;
+            }
+
             item.SetImage(
                 new ItemImageInfo
                 {
-                    Path = entry.OriginalPath,
-                    Type = ImageType.Primary,
-                    DateModified = File.Exists(entry.OriginalPath)
-                        ? File.GetLastWriteTimeUtc(entry.OriginalPath)
+                    Path = image.OriginalPath,
+                    Type = image.Type,
+                    DateModified = File.Exists(image.OriginalPath)
+                        ? File.GetLastWriteTimeUtc(image.OriginalPath)
                         : DateTime.MinValue
                 },
-                0);
+                image.Index);
+            restored = true;
+        }
+
+        if (restored)
+        {
             await item.UpdateToRepositoryAsync(ItemUpdateType.ImageUpdate, cancellationToken).ConfigureAwait(false);
         }
 
@@ -269,7 +330,11 @@ public sealed class PosterBadgeService
         return seriesId == Guid.Empty ? null : _libraryManager.GetItemById(seriesId)?.Tags;
     }
 
-    private async Task<string?> ResolveLocalImageAsync(BaseItem item, string path, CancellationToken cancellationToken)
+    private async Task<string?> ResolveLocalImageAsync(
+        BaseItem item,
+        string path,
+        ImageType type,
+        CancellationToken cancellationToken)
     {
         if (File.Exists(path))
         {
@@ -285,7 +350,7 @@ public sealed class PosterBadgeService
         try
         {
             var local = await _libraryManager
-                .ConvertImageToLocal(item, new ItemImageInfo { Path = path, Type = ImageType.Primary }, 0, removeOnFailure: false)
+                .ConvertImageToLocal(item, new ItemImageInfo { Path = path, Type = type }, 0, removeOnFailure: false)
                 .ConfigureAwait(false);
             return File.Exists(local.Path) ? local.Path : null;
         }
@@ -296,11 +361,11 @@ public sealed class PosterBadgeService
         }
     }
 
-    private void DeleteFiles(Guid itemId, string? keep = null)
+    private void DeleteFiles(Guid itemId, IReadOnlySet<string>? keep = null)
     {
         foreach (var file in Directory.EnumerateFiles(_cache.BadgesDirectory, $"{itemId}-*"))
         {
-            if (keep is not null && string.Equals(file, keep, StringComparison.OrdinalIgnoreCase))
+            if (keep is not null && keep.Contains(file))
             {
                 continue;
             }
