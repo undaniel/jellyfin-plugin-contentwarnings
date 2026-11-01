@@ -12,6 +12,7 @@ description: >
   DoesTheDogDie API key. Powered by DoesTheDogDie.com.
 category: "General"
 owner: "daniel"
+imageUrl: "https://raw.githubusercontent.com/undaniel/jellyfin-plugin-contentwarnings/main/images/icon.png"
 artifacts:
 - "Jellyfin.Plugin.ContentWarnings.dll"
 changelog: >
