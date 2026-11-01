@@ -189,23 +189,36 @@ public sealed class PosterBadgeService
         if (backdrop is not null)
         {
             var current = item.GetImageInfo(ImageType.Backdrop, backdrop.Index);
-            if (current is not null
-                && string.Equals(current.Path, backdrop.BadgedPath, StringComparison.OrdinalIgnoreCase))
+            if (current is null
+                || !string.Equals(current.Path, backdrop.BadgedPath, StringComparison.OrdinalIgnoreCase))
             {
-                item.SetImage(
-                    new ItemImageInfo
-                    {
-                        Path = backdrop.OriginalPath,
-                        Type = ImageType.Backdrop,
-                        DateModified = File.Exists(backdrop.OriginalPath)
-                            ? File.GetLastWriteTimeUtc(backdrop.OriginalPath)
-                            : DateTime.MinValue
-                    },
-                    backdrop.Index);
-                changed = true;
+                // The image was replaced while badged; keep the administrator's change.
+                entry!.Images.Remove(backdrop);
             }
+            else
+            {
+                // The original may be a remote provider URL. Download it first, or the
+                // restored backdrop would point at a URL the image endpoint cannot serve.
+                var originalPath = await ResolveLocalImageAsync(
+                    item,
+                    backdrop.OriginalPath,
+                    ImageType.Backdrop,
+                    cancellationToken).ConfigureAwait(false);
 
-            entry!.Images.Remove(backdrop);
+                if (originalPath is not null)
+                {
+                    item.SetImage(
+                        new ItemImageInfo
+                        {
+                            Path = originalPath,
+                            Type = ImageType.Backdrop,
+                            DateModified = File.GetLastWriteTimeUtc(originalPath)
+                        },
+                        backdrop.Index);
+                    entry!.Images.Remove(backdrop);
+                    changed = true;
+                }
+            }
         }
 
         foreach (var (type, index) in BadgeTargets())

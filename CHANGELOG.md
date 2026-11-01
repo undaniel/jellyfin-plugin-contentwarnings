@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.3.1 — 2026-11-01
+
+- Restoring a backdrop downloads the original first when it is a remote provider URL, so
+  the item page does not lose its background.
+
 ## 1.1.3.0 — 2026-11-01
 
 - Stop baking the badge into backdrops. The item page stretches the backdrop to the whole
