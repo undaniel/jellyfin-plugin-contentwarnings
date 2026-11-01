@@ -11,7 +11,7 @@ public static class BadgeDecision
     /// <summary>
     /// Bump when the badge artwork changes, so existing badges are redrawn.
     /// </summary>
-    public const int Version = 3;
+    public const int Version = 4;
 
     /// <summary>
     /// Gets whether the item carries at least one tag written by this plugin.

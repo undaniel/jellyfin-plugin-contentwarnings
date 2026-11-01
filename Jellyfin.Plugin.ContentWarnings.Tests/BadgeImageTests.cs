@@ -45,6 +45,11 @@ public class BadgeImageTests
 
             Assert.NotEqual(SKColors.Gray, result.GetPixel(badgeX, badgeY));
             Assert.Equal(SKColors.Gray, result.GetPixel(oppositeX, oppositeY));
+
+            // The paw is knocked out of the white triangle, so the pad shows the badge red.
+            var radius = Math.Max(12f, Math.Min(200, 300) * 0.08f);
+            var padY = (int)Math.Round(badgeY + (radius * 0.408f));
+            Assert.Equal(new SKColor(0xD3, 0x2F, 0x2F), result.GetPixel(badgeX, padY));
         }
         finally
         {

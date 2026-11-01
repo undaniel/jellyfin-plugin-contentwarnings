@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2.0 — 2026-11-01
+
+- The poster badge now shows the warning triangle with the paw cut out, matching the
+  plugin icon and the README instead of the plain exclamation mark.
+- Existing badges are redrawn on the next task run.
+
 ## 1.1.1.0 — 2026-11-01
 
 - Redesigned the badge icon: tapered exclamation mark with a real gap between the bar and

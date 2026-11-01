@@ -1,7 +1,7 @@
 ---
 name: "Content Warnings"
 guid: "cf9b24f8-d19d-4c23-897f-7fccce8c79d7"
-version: "1.1.1.0"
+version: "1.1.2.0"
 targetAbi: "12.0.0.0"
 framework: "net10.0"
 overview: "Content warnings from DoesTheDogDie.com as native Jellyfin tags"

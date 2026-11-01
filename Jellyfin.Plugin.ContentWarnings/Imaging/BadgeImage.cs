@@ -113,20 +113,44 @@ public static class BadgeImage
         };
         canvas.DrawCircle(centerX, centerY, radius * 0.9825f, rim);
 
-        using var bar = new SKPath();
-        var barTop = centerY - (radius * 0.625f);
-        var barBottom = centerY + (radius * 0.15f);
-        bar.MoveTo(centerX - (radius * 0.15f), barTop);
-        bar.LineTo(centerX + (radius * 0.15f), barTop);
-        bar.LineTo(centerX + (radius * 0.1125f), barBottom);
-        bar.LineTo(centerX - (radius * 0.1125f), barBottom);
-        bar.Close();
+        // Warning triangle with the paw knocked out, same proportions as the plugin icon.
+        var halfBase = radius * 0.783f;
+        using var triangle = new SKPath();
+        triangle.MoveTo(centerX, centerY - (radius * 0.633f));
+        triangle.LineTo(centerX + halfBase, centerY + (radius * 0.700f));
+        triangle.LineTo(centerX - halfBase, centerY + (radius * 0.700f));
+        triangle.Close();
 
-        using var roundedEnds = SKPathEffect.CreateCorner(radius * 0.10f);
-        using var mark = new SKPaint { Color = MarkColor, IsAntialias = true, PathEffect = roundedEnds };
-        canvas.DrawPath(bar, mark);
+        using var mark = new SKPaint
+        {
+            Color = MarkColor,
+            IsAntialias = true,
+            Style = SKPaintStyle.StrokeAndFill,
+            StrokeWidth = radius * 0.108f,
+            StrokeJoin = SKStrokeJoin.Round
+        };
+        canvas.DrawPath(triangle, mark);
 
-        using var dot = new SKPaint { Color = MarkColor, IsAntialias = true };
-        canvas.DrawCircle(centerX, centerY + (radius * 0.45f), radius * 0.19f, dot);
+        using var paw = new SKPaint { Color = BadgeColor, IsAntialias = true };
+        canvas.DrawOval(centerX, centerY + (radius * 0.408f), radius * 0.225f, radius * 0.1875f, paw);
+        DrawToe(canvas, centerX - (radius * 0.267f), centerY + (radius * 0.167f), -22f, radius, paw);
+        DrawToe(canvas, centerX - (radius * 0.0833f), centerY + (radius * 0.067f), -8f, radius, paw);
+        DrawToe(canvas, centerX + (radius * 0.0833f), centerY + (radius * 0.067f), 8f, radius, paw);
+        DrawToe(canvas, centerX + (radius * 0.267f), centerY + (radius * 0.167f), 22f, radius, paw);
+    }
+
+    private static void DrawToe(
+        SKCanvas canvas,
+        float x,
+        float y,
+        float angle,
+        float radius,
+        SKPaint paint)
+    {
+        canvas.Save();
+        canvas.Translate(x, y);
+        canvas.RotateDegrees(angle);
+        canvas.DrawOval(0, 0, radius * 0.0958f, radius * 0.1208f, paint);
+        canvas.Restore();
     }
 }
